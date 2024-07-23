@@ -1,4 +1,4 @@
-module awesomeProject
+module github.com/naughtyGitCat/anonymous-query-scan
 
 go 1.22
 
