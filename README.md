@@ -43,7 +43,7 @@ func main() {
     if err != nil {
         panic(err) 
     // ScanAnonymousMappedRowsExt return timestamp optimized and time localized rows 
-    mappedRows, err := mysqlScan.ScanAnonymousMappedRowsExt(rows)
+    mappedRows, err := mysql.ScanAnonymousMappedRowsExt(rows)
     if err != nil {
         return nil, err
     }
