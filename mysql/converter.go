@@ -21,10 +21,11 @@ const (
 	dateTimeFormat2 = "2006-01-02T15:04:05Z"
 )
 
-// mysqlTypeConverters
+// grafanaMySQLTypeConverters
 // copy from github.com/grafana/grafana/pkg/tsdb/mysql/mysql.go
+// add timestamp converter and change time related to local time
 // ref: https://dev.mysql.com/doc/refman/8.4/en/data-types.html
-var mysqlTypeConverters = []sqlutil.StringConverter{
+var grafanaMySQLTypeConverters = []sqlutil.StringConverter{
 	{
 		Name:           "handle DOUBLE",
 		InputScanKind:  reflect.Struct,
@@ -83,6 +84,29 @@ var mysqlTypeConverters = []sqlutil.StringConverter{
 		},
 	},
 	{
+		Name:           "handle TIMESTAMP",
+		InputScanKind:  reflect.Struct,
+		InputTypeName:  "TIMESTAMP",
+		ConversionFunc: func(in *string) (*string, error) { return in, nil },
+		Replacer: &sqlutil.StringFieldReplacer{
+			OutputFieldType: data.FieldTypeNullableTime,
+			ReplaceFunc: func(in *string) (any, error) {
+				if in == nil {
+					return nil, nil
+				}
+				v, err := time.Parse(dateTimeFormat1, *in)
+				if err == nil {
+					return (&v).Local().Unix(), nil
+				}
+				v, err = time.Parse(dateTimeFormat2, *in)
+				if err == nil {
+					return (&v).Local().Unix(), nil
+				}
+				return nil, err
+			},
+		},
+	},
+	{
 		Name:           "handle DATETIME",
 		InputScanKind:  reflect.Struct,
 		InputTypeName:  "DATETIME",
@@ -95,11 +119,11 @@ var mysqlTypeConverters = []sqlutil.StringConverter{
 				}
 				v, err := time.Parse(dateTimeFormat1, *in)
 				if err == nil {
-					return &v, nil
+					return (&v).Local(), nil
 				}
 				v, err = time.Parse(dateTimeFormat2, *in)
 				if err == nil {
-					return &v, nil
+					return (&v).Local(), nil
 				}
 
 				return nil, err
@@ -119,34 +143,15 @@ var mysqlTypeConverters = []sqlutil.StringConverter{
 				}
 				v, err := time.Parse(dateFormat, *in)
 				if err == nil {
-					return &v, nil
+					return (&v).Local(), nil
 				}
 				v, err = time.Parse(dateTimeFormat1, *in)
 				if err == nil {
-					return &v, nil
+					return (&v).Local(), nil
 				}
 				v, err = time.Parse(dateTimeFormat2, *in)
 				if err == nil {
-					return &v, nil
-				}
-				return nil, err
-			},
-		},
-	},
-	{
-		Name:           "handle TIMESTAMP",
-		InputScanKind:  reflect.Struct,
-		InputTypeName:  "TIMESTAMP",
-		ConversionFunc: func(in *string) (*string, error) { return in, nil },
-		Replacer: &sqlutil.StringFieldReplacer{
-			OutputFieldType: data.FieldTypeNullableInt64,
-			ReplaceFunc: func(in *string) (any, error) {
-				if in == nil {
-					return nil, nil
-				}
-				v, err := strconv.ParseInt(*in, 10, 64)
-				if err == nil {
-					return &v, nil
+					return (&v).Local(), nil
 				}
 				return nil, err
 			},
@@ -249,16 +254,16 @@ var mysqlTypeConverters = []sqlutil.StringConverter{
 	},
 }
 
-// SQLTypeConverter a simplified SQLTypeConverter
-type SQLTypeConverter struct {
+// simplySQLTypeConverter a simplified simplySQLTypeConverter
+type simplySQLTypeConverter struct {
 	Name        string
 	InputType   reflect.Type
 	ReplaceFunc func(*string) (any, error)
 }
 
-// sqlTypeConverters
+// SimplySQLTypeConverters
 // simplified grafana mysql converters
-var sqlTypeConverters = []SQLTypeConverter{
+var SimplySQLTypeConverters = []simplySQLTypeConverter{
 	{
 		Name:      "NullTime",
 		InputType: reflect.TypeOf(sql.NullTime{}),
