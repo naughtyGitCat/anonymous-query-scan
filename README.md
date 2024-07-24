@@ -5,16 +5,6 @@
 ## Detail
 
 ```go
-// DeprecatedScanAnonymousRows scan anonymous rows without predefined struct, using simply converter match with sql types
-// cols type related with time, datetime, date, timestamp will be converted to utc time, timestamp will be datetime, json will be string
-// return format likes: [[number, 'string', '0000-00-00T00:00:00Z',...]...]
-
-func DeprecatedScanAnonymousRows(rows *sql.Rows) ([][]any, error) {}
-// DeprecatedScanAnonymousMappedRows scan anonymous rows without predefined struct, using simply converter match with sql types
-// cols type related with time, datetime, date, timestamp will be converted to utc time, timestamp will be datetime, json will be string
-// return format likes: [{'col1': number, 'col2': 'string', 'col3': '0000-00-00T00:00:00Z',...}...]
-func DeprecatedScanAnonymousMappedRows(rows *sql.Rows) ([]map[string]any, error) {}
-
 // ScanAnonymousRows scan anonymous rows without predefined struct, using simply converter match with sql types
 // cols type related with time(datetime,date,timestamp) will be converted to local time, timestamp will be datetime, json will be json
 // return format likes: [[number, 'string', '0000-00-00T00:00:00Z',...]...]
@@ -24,6 +14,16 @@ func ScanAnonymousRows(rows *sql.Rows) ([][]any, error) {}
 // cols type related with time, datetime, date, timestamp will be converted to local time, timestamp will be number
 // return format likes: [{number, 'string', '0000-00-00T00:00:00±0:00',...}...]
 func ScanAnonymousMappedRows(rows *sql.Rows) ([]map[string]any, error) {}
+
+// DeprecatedScanAnonymousRows scan anonymous rows without predefined struct, using simply converter match with sql types
+// cols type related with time, datetime, date, timestamp will be converted to utc time, timestamp will be datetime, json will be string
+// return format likes: [[number, 'string', '0000-00-00T00:00:00Z',...]...]
+func DeprecatedScanAnonymousRows(rows *sql.Rows) ([][]any, error) {}
+
+// DeprecatedScanAnonymousMappedRows scan anonymous rows without predefined struct, using simply converter match with sql types
+// cols type related with time, datetime, date, timestamp will be converted to utc time, timestamp will be datetime, json will be string
+// return format likes: [{'col1': number, 'col2': 'string', 'col3': '0000-00-00T00:00:00Z',...}...]
+func DeprecatedScanAnonymousMappedRows(rows *sql.Rows) ([]map[string]any, error) {}
 ```
 ## How-To
 #### install
