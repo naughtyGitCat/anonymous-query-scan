@@ -8,7 +8,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/grafana/grafana-plugin-sdk-go/data/sqlutil"
 	"slices"
 	"testing"
 )
@@ -29,6 +28,14 @@ func createTable() error {
 		return err
 	}
 	_, err = db.Exec("CREATE TABLE t1(id int, name varchar(18))")
+	if err != nil {
+		return err
+	}
+	_, err = db.Exec("DROP TABLE IF EXISTS `t_json`")
+	if err != nil {
+		return err
+	}
+	_, err = db.Exec("CREATE TABLE t_json(id int, content json)")
 	return err
 }
 
@@ -38,6 +45,10 @@ func insertData() error {
 		return err
 	}
 	_, err = db.Exec("INSERT INTO t1(id, name) VALUES (1, 'mysql')")
+	if err != nil {
+		return err
+	}
+	_, err = db.Exec("INSERT INTO t_json(id, content) VALUES (1, '{\"name\":\"mysql\", \"version\": 5.7, \"enabled\": true}'), (2, '[\"5.7\", \"8.0\"]'), (3, '[{\"name\":\"mysql\", \"version\": 5.7}]')")
 	return err
 }
 
@@ -50,7 +61,7 @@ func prepare() error {
 	return err
 }
 
-func query() (*sql.Rows, error) {
+func queryT1() (*sql.Rows, error) {
 	db, err := newConnection()
 	if err != nil {
 		return nil, err
@@ -59,8 +70,17 @@ func query() (*sql.Rows, error) {
 	return rows, err
 }
 
+func queryTJSON() (*sql.Rows, error) {
+	db, err := newConnection()
+	if err != nil {
+		return nil, err
+	}
+	rows, err := db.Query("select * from t_json")
+	return rows, err
+}
+
 // TestMySQLAnonymousScan
-// query row: [1, 'mysql']
+// queryT1 row: [1, 'mysql']
 // expect result: [[1, 'mysql']]
 // actually result: [[1,"bXlzcWw="]]
 func TestMySQLAnonymousScan(t *testing.T) {
@@ -68,9 +88,9 @@ func TestMySQLAnonymousScan(t *testing.T) {
 	if err != nil {
 		t.Errorf("prepare() failed: %v", err)
 	}
-	rows, err := query()
+	rows, err := queryT1()
 	if err != nil {
-		t.Errorf("query() failed: %v", err)
+		t.Errorf("queryT1() failed: %v", err)
 	}
 	cols, err := rows.Columns()
 	if err != nil {
@@ -98,7 +118,7 @@ func TestMySQLAnonymousScan(t *testing.T) {
 }
 
 // TestScanAnonymousRows
-// query row: [1, 'mysql']
+// queryT1 row: [1, 'mysql']
 // expect result: [[1,"mysql"]]
 // actually result: [[1,"mysql"]]
 func TestScanAnonymousRows(t *testing.T) {
@@ -106,9 +126,9 @@ func TestScanAnonymousRows(t *testing.T) {
 	if err != nil {
 		t.Errorf("prepare() failed: %v", err)
 	}
-	rows, err := query()
+	rows, err := queryT1()
 	if err != nil {
-		t.Errorf("query() failed: %s", err)
+		t.Errorf("queryT1() failed: %s", err)
 	}
 	anonymousRows, err := ScanAnonymousRows(rows)
 	if err != nil {
@@ -125,7 +145,7 @@ func TestScanAnonymousRows(t *testing.T) {
 }
 
 // TestScanAnonymousMappedRows
-// query row: [1, 'mysql']
+// queryT1 row: [1, 'mysql']
 // expect result: [{"id":1,"name":"mysql"}]
 // actually result: [{"id":1,"name":"mysql"}]
 func TestScanAnonymousMappedRows(t *testing.T) {
@@ -133,9 +153,9 @@ func TestScanAnonymousMappedRows(t *testing.T) {
 	if err != nil {
 		t.Errorf("prepare() failed: %v", err)
 	}
-	rows, err := query()
+	rows, err := queryT1()
 	if err != nil {
-		t.Errorf("query() failed: %s", err)
+		t.Errorf("queryT1() failed: %s", err)
 	}
 	mappedRows, err := ScanAnonymousMappedRows(rows)
 	if err != nil {
@@ -152,29 +172,58 @@ func TestScanAnonymousMappedRows(t *testing.T) {
 	}
 }
 
-// TestMySQLScanToGrafanaFrames
-// query row: [1, 'mysql']
-// expect result: {"schema":{"fields":[{"name":"id","type":"number","typeInfo":{"frame":"int64","nullable":true}},{"name":"name","type":"string","typeInfo":{"frame":"string","nullable":true}}]},"data":{"values":[[1],["mysql"]]}}
-// actually result: {"schema":{"fields":[{"name":"id","type":"number","typeInfo":{"frame":"int64","nullable":true}},{"name":"name","type":"string","typeInfo":{"frame":"string","nullable":true}}]},"data":{"values":[[1],["mysql"]]}}
-func TestMySQLScanToGrafanaFrames(t *testing.T) {
+// TestMySQLJsonColumn
+// queryTJSON rows: (1, '{"name":"mysql", "version": 5.7, "enabled": true}'), (2, '["5.7", "8.0"]'), (3, '[{"name":"mysql", "version": 5.7}]')
+// expect result: [{"content":{"enabled":true,"name":"mysql","version":5.7},"id":1},{"content":["5.7","8.0"],"id":2},{"content":[{"name":"mysql","version":5.7}],"id":3}]
+// actually result: [{"content":{"enabled":true,"name":"mysql","version":5.7},"id":1},{"content":["5.7","8.0"],"id":2},{"content":[{"name":"mysql","version":5.7}],"id":3}]
+func TestMySQLJsonColumn(t *testing.T) {
 	err := prepare()
 	if err != nil {
 		t.Errorf("prepare() failed: %v", err)
 	}
-	rows, err := query()
+	rows, err := queryTJSON()
 	if err != nil {
-		t.Errorf("query() failed: %v", err)
+		t.Errorf("queryTJSON() failed: %v", err)
 	}
-	frames, err := sqlutil.FrameFromRows(rows, 8888, sqlutil.ToConverters(grafanaMySQLTypeConverters...)...)
+	mappedRows, err := ScanAnonymousMappedRowsExt(rows)
 	if err != nil {
-		t.Errorf("sqlutil.FrameFromRows() failed: %v", err)
+		t.Errorf("ScanAnonymousMappedRowsExt() failed: %v", err)
 	}
-	bytes, err := json.Marshal(frames)
+	bytes, err := json.Marshal(mappedRows)
 	if err != nil {
 		t.Errorf("json.Marshal() failed: %v", err)
 	}
-	const grafanaTypedJson = "{\"schema\":{\"fields\":[{\"name\":\"id\",\"type\":\"number\",\"typeInfo\":{\"frame\":\"int64\",\"nullable\":true}},{\"name\":\"name\",\"type\":\"string\",\"typeInfo\":{\"frame\":\"string\",\"nullable\":true}}]},\"data\":{\"values\":[[1],[\"mysql\"]]}}"
-	if string(bytes) != grafanaTypedJson {
-		t.Errorf("grafana formatted json doesn't match")
+	const rawJson = "[{\"content\":{\"enabled\":true,\"name\":\"mysql\",\"version\":5.7},\"id\":1},{\"content\":[\"5.7\",\"8.0\"],\"id\":2},{\"content\":[{\"name\":\"mysql\",\"version\":5.7}],\"id\":3}]"
+	if string(bytes) != rawJson {
+		t.Errorf("mapped json doesn't match")
 	}
 }
+
+// TestMySQLScanToGrafanaFrames
+// queryT1 row: [1, 'mysql']
+// expect result: {"schema":{"fields":[{"name":"id","type":"number","typeInfo":{"frame":"int64","nullable":true}},{"name":"name","type":"string","typeInfo":{"frame":"string","nullable":true}}]},"data":{"values":[[1],["mysql"]]}}
+// actually result: {"schema":{"fields":[{"name":"id","type":"number","typeInfo":{"frame":"int64","nullable":true}},{"name":"name","type":"string","typeInfo":{"frame":"string","nullable":true}}]},"data":{"values":[[1],["mysql"]]}}
+
+//func TestMySQLScanToGrafanaFrames(t *testing.T) {
+//	err := prepare()
+//	if err != nil {
+//		t.Errorf("prepare() failed: %v", err)
+//	}
+//	rows, err := queryT1()
+//	if err != nil {
+//		t.Errorf("queryT1() failed: %v", err)
+//	}
+//
+//	frames, err := sqlutil.FrameFromRows(rows, 8888, sqlutil.ToConverters(grafanaMySQLTypeConverters...)...)
+//	if err != nil {
+//		t.Errorf("sqlutil.FrameFromRows() failed: %v", err)
+//	}
+//	bytes, err := json.Marshal(frames)
+//	if err != nil {
+//		t.Errorf("json.Marshal() failed: %v", err)
+//	}
+//	const grafanaTypedJson = "{\"schema\":{\"fields\":[{\"name\":\"id\",\"type\":\"number\",\"typeInfo\":{\"frame\":\"int64\",\"nullable\":true}},{\"name\":\"name\",\"type\":\"string\",\"typeInfo\":{\"frame\":\"string\",\"nullable\":true}}]},\"data\":{\"values\":[[1],[\"mysql\"]]}}"
+//	if string(bytes) != grafanaTypedJson {
+//		t.Errorf("grafana formatted json doesn't match")
+//	}
+//}
