@@ -185,9 +185,36 @@ func TestMySQLJsonColumn(t *testing.T) {
 	if err != nil {
 		t.Errorf("queryTJSON() failed: %v", err)
 	}
-	mappedRows, err := ScanAnonymousMappedRowsExt(rows)
+	mappedRows, err := ScanAnonymousRows(rows)
 	if err != nil {
-		t.Errorf("ScanAnonymousMappedRowsExt() failed: %v", err)
+		t.Errorf("ScanAnonymousRows() failed: %v", err)
+	}
+	bytes, err := json.Marshal(mappedRows)
+	if err != nil {
+		t.Errorf("json.Marshal() failed: %v", err)
+	}
+	const rawJson = "[[1,{\"enabled\":true,\"name\":\"mysql\",\"version\":5.7}],[2,[\"5.7\",\"8.0\"]],[3,[{\"name\":\"mysql\",\"version\":5.7}]]]"
+	if string(bytes) != rawJson {
+		t.Errorf("mapped json doesn't match")
+	}
+}
+
+// TestMySQLMappedJsonColumn
+// queryTJSON rows: (1, '{"name":"mysql", "version": 5.7, "enabled": true}'), (2, '["5.7", "8.0"]'), (3, '[{"name":"mysql", "version": 5.7}]')
+// expect result: [[1,{"enabled":true,"name":"mysql","version":5.7}],[2,["5.7","8.0"]],[3,[{"name":"mysql","version":5.7}]]]
+// actually result: [[1,{"enabled":true,"name":"mysql","version":5.7}],[2,["5.7","8.0"]],[3,[{"name":"mysql","version":5.7}]]]
+func TestMySQLMappedJsonColumn(t *testing.T) {
+	err := prepare()
+	if err != nil {
+		t.Errorf("prepare() failed: %v", err)
+	}
+	rows, err := queryTJSON()
+	if err != nil {
+		t.Errorf("queryTJSON() failed: %v", err)
+	}
+	mappedRows, err := ScanAnonymousMappedRows(rows)
+	if err != nil {
+		t.Errorf("ScanAnonymousMappedRows() failed: %v", err)
 	}
 	bytes, err := json.Marshal(mappedRows)
 	if err != nil {
@@ -203,7 +230,6 @@ func TestMySQLJsonColumn(t *testing.T) {
 // queryT1 row: [1, 'mysql']
 // expect result: {"schema":{"fields":[{"name":"id","type":"number","typeInfo":{"frame":"int64","nullable":true}},{"name":"name","type":"string","typeInfo":{"frame":"string","nullable":true}}]},"data":{"values":[[1],["mysql"]]}}
 // actually result: {"schema":{"fields":[{"name":"id","type":"number","typeInfo":{"frame":"int64","nullable":true}},{"name":"name","type":"string","typeInfo":{"frame":"string","nullable":true}}]},"data":{"values":[[1],["mysql"]]}}
-
 //func TestMySQLScanToGrafanaFrames(t *testing.T) {
 //	err := prepare()
 //	if err != nil {

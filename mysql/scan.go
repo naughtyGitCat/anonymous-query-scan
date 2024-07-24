@@ -11,10 +11,57 @@ import (
 	"slices"
 )
 
-// ScanAnonymousMappedRows scan anonymous rows without predefined struct, using simply converter match with sql types
-// cols type related with time, datetime, date, timestamp will be converted to utc time, timestamp will be datetime
+// DeprecatedScanAnonymousRows scan anonymous rows without predefined struct, using simply converter match with sql types
+// cols type related with time, datetime, date, timestamp will be converted to utc time, timestamp will be datetime, json will be string
+// return format likes: [[number, 'string', '0000-00-00T00:00:00Z',...]...]
+func DeprecatedScanAnonymousRows(rows *sql.Rows) ([][]any, error) {
+	// get col types for type convert
+	colTypes, err := rows.ColumnTypes()
+	if err != nil {
+		return nil, fmt.Errorf("get colTypes failed, %w", err)
+	}
+	var colScanTypes []reflect.Type
+	for _, colType := range colTypes {
+		colScanTypes = append(colScanTypes, colType.ScanType())
+	}
+	// prepare for scan
+	scanArgs := make([]interface{}, len(colTypes))
+	values := make([]*string, len(colTypes))
+	for i := range values {
+		scanArgs[i] = &values[i]
+	}
+	var allValues [][]any
+
+	// native scan rows
+	for rows.Next() {
+		err = rows.Scan(scanArgs...)
+		if err != nil {
+			return nil, fmt.Errorf("scan row failed, %w", err)
+		}
+		typedValues := make([]interface{}, len(colTypes))
+	ValueLoop:
+		for i, stringV := range values {
+			for _, converter := range SimplySQLTypeConverters {
+				if colScanTypes[i] == converter.InputType {
+					convertedValue, err := converter.ReplaceFunc(stringV)
+					if err != nil {
+						return nil, fmt.Errorf("convert value failed, %w", err)
+					}
+					typedValues[i] = convertedValue
+					continue ValueLoop
+				}
+			}
+			typedValues[i] = stringV
+		}
+		allValues = append(allValues, typedValues)
+	}
+	return allValues, nil
+}
+
+// DeprecatedScanAnonymousMappedRows scan anonymous rows without predefined struct, using simply converter match with sql types
+// cols type related with time, datetime, date, timestamp will be converted to utc time, timestamp will be datetime, json will be string
 // return format likes: [{'col1': number, 'col2': 'string', 'col3': '0000-00-00T00:00:00Z',...}...]
-func ScanAnonymousMappedRows(rows *sql.Rows) ([]map[string]any, error) {
+func DeprecatedScanAnonymousMappedRows(rows *sql.Rows) ([]map[string]any, error) {
 	colTypes, err := rows.ColumnTypes()
 	if err != nil {
 		return nil, fmt.Errorf("get colTypes failed, %w", err)
@@ -68,17 +115,17 @@ func ScanAnonymousMappedRows(rows *sql.Rows) ([]map[string]any, error) {
 }
 
 // ScanAnonymousRows scan anonymous rows without predefined struct, using simply converter match with sql types
-// cols type related with time, datetime, date, timestamp will be converted to utc time, timestamp will be datetime
-// return format likes: [{number, 'string', '0000-00-00T00:00:00Z',...}...]
+// cols type related with time(datetime,date,timestamp) will be converted to local time, timestamp will be datetime, json will be json
+// return format likes: [[number, 'string', '0000-00-00T00:00:00Z',...]...]
 func ScanAnonymousRows(rows *sql.Rows) ([][]any, error) {
 	// get col types for type convert
 	colTypes, err := rows.ColumnTypes()
 	if err != nil {
 		return nil, fmt.Errorf("get colTypes failed, %w", err)
 	}
-	var colScanTypes []reflect.Type
+	var colMySQLTypes []string
 	for _, colType := range colTypes {
-		colScanTypes = append(colScanTypes, colType.ScanType())
+		colMySQLTypes = append(colMySQLTypes, colType.DatabaseTypeName())
 	}
 	// prepare for scan
 	scanArgs := make([]interface{}, len(colTypes))
@@ -97,8 +144,8 @@ func ScanAnonymousRows(rows *sql.Rows) ([][]any, error) {
 		typedValues := make([]interface{}, len(colTypes))
 	ValueLoop:
 		for i, stringV := range values {
-			for _, converter := range SimplySQLTypeConverters {
-				if colScanTypes[i] == converter.InputType {
+			for _, converter := range mysqlTypeConverters {
+				if colMySQLTypes[i] == converter.MySQLType {
 					convertedValue, err := converter.ReplaceFunc(stringV)
 					if err != nil {
 						return nil, fmt.Errorf("convert value failed, %w", err)
@@ -114,10 +161,10 @@ func ScanAnonymousRows(rows *sql.Rows) ([][]any, error) {
 	return allValues, nil
 }
 
-// ScanAnonymousMappedRowsExt scan anonymous rows without predefined struct, using grafana converter match with mysql types
+// ScanAnonymousMappedRows scan anonymous rows without predefined struct, using grafana converter match with mysql types
 // cols type related with time, datetime, date, timestamp will be converted to local time, timestamp will be number
 // return format likes: [{number, 'string', '0000-00-00T00:00:00±0:00',...}...]
-func ScanAnonymousMappedRowsExt(rows *sql.Rows) ([]map[string]any, error) {
+func ScanAnonymousMappedRows(rows *sql.Rows) ([]map[string]any, error) {
 	colTypes, err := rows.ColumnTypes()
 	if err != nil {
 		return nil, fmt.Errorf("get colTypes failed, %w", err)
