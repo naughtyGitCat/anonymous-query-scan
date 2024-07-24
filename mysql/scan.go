@@ -76,9 +76,9 @@ func ScanAnonymousRows(rows *sql.Rows) ([][]any, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get colTypes failed, %w", err)
 	}
-	var types []reflect.Type
+	var colScanTypes []reflect.Type
 	for _, colType := range colTypes {
-		types = append(types, colType.ScanType())
+		colScanTypes = append(colScanTypes, colType.ScanType())
 	}
 	// prepare for scan
 	scanArgs := make([]interface{}, len(colTypes))
@@ -98,7 +98,7 @@ func ScanAnonymousRows(rows *sql.Rows) ([][]any, error) {
 	ValueLoop:
 		for i, stringV := range values {
 			for _, converter := range SimplySQLTypeConverters {
-				if types[i] == converter.InputType {
+				if colScanTypes[i] == converter.InputType {
 					convertedValue, err := converter.ReplaceFunc(stringV)
 					if err != nil {
 						return nil, fmt.Errorf("convert value failed, %w", err)
@@ -153,9 +153,9 @@ func ScanAnonymousMappedRowsExt(rows *sql.Rows) ([]map[string]any, error) {
 		var mappedRow = map[string]any{}
 	ValueLoop:
 		for i, stringV := range values {
-			for _, converter := range grafanaMySQLTypeConverters {
-				if colMySQLTypes[i] == converter.InputTypeName {
-					convertedValue, err := converter.Replacer.ReplaceFunc(stringV)
+			for _, converter := range mysqlTypeConverters {
+				if colMySQLTypes[i] == converter.MySQLType {
+					convertedValue, err := converter.ReplaceFunc(stringV)
 					if err != nil {
 						return nil, fmt.Errorf("convert value failed, %w", err)
 					}
