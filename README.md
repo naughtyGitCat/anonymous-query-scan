@@ -61,7 +61,10 @@ func main() {
 
 ## Ref
 - https://dev.mysql.com/doc/refman/8.4/en/data-types.html
+- https://stackoverflow.com/questions/42774467/how-to-convert-sql-rows-to-typed-json-in-golang
 - https://stackoverflow.com/questions/55995917/reverse-of-reflect-typeof
+- https://stackoverflow.com/questions/14177862/how-to-marshal-a-byte-uint8-array-as-json-array-in-go/78662958#78662958
+- https://stackoverflow.com/questions/34089750/marshal-byte-to-json-giving-a-strange-string
 - https://github.com/grafana/grafana-plugin-sdk-go
 - https://github.com/go-sql-driver/mysql/wiki/Examples
 - [ISSUE-407 Returned values are always []byte](https://github.com/go-sql-driver/mysql/issues/407)
