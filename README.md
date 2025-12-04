@@ -188,3 +188,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [Go SQL Driver Examples](https://github.com/go-sql-driver/mysql/wiki/Examples)
 - [MySQL Driver Issue #407](https://github.com/go-sql-driver/mysql/issues/407) - Context for this library's creation
 - [Go Reflection Deep Dive](https://stackoverflow.com/questions/55995917/reverse-of-reflect-typeof)
+- [Converting SQL Rows to Typed JSON in Go](https://stackoverflow.com/questions/42774467/how-to-convert-sql-rows-to-typed-json-in-golang)
+- [Marshal Byte Array as JSON Array in Go](https://stackoverflow.com/questions/14177862/how-to-marshal-a-byte-uint8-array-as-json-array-in-go/78662958#78662958)
+- [Marshal Byte to JSON Issues](https://stackoverflow.com/questions/34089750/marshal-byte-to-json-giving-a-strange-string)
